@@ -124,64 +124,13 @@
     <div id="output"></div>
 
     <script type="module">
+      import { getAllPasswords } from "./lte-passwords.js";
+
       const localInput = document.getElementById("localUrl");
       const vpsInput = document.getElementById("vpsUrl");
       const output = document.getElementById("output");
 
-      let passwords = [];
-
-      async function loadPasswords() {
-        try {
-          const vpsUrl = vpsInput.value.replace(/\/$/, "");
-          const response = await fetch(`${vpsUrl}/api/control/words`);
-          const data = await response.json();
-          passwords = data.passwords;
-        } catch {
-          // Fallback to hardcoded list
-          passwords = [
-            { slot: 1, password: "gray-shark" }, { slot: 2, password: "blue-whale" },
-            { slot: 3, password: "red-tiger" }, { slot: 4, password: "gold-eagle" },
-            { slot: 5, password: "dark-raven" }, { slot: 6, password: "iron-wolf" },
-            { slot: 7, password: "silver-fox" }, { slot: 8, password: "jade-cobra" },
-            { slot: 9, password: "steel-hawk" }, { slot: 10, password: "bronze-bear" },
-            { slot: 11, password: "black-panther" }, { slot: 12, password: "white-falcon" },
-            { slot: 13, password: "green-viper" }, { slot: 14, password: "amber-lion" },
-            { slot: 15, password: "crimson-dragon" }, { slot: 16, password: "pearl-dove" },
-            { slot: 17, password: "copper-otter" }, { slot: 18, password: "onyx-lynx" },
-            { slot: 19, password: "coral-crane" }, { slot: 20, password: "slate-badger" },
-            { slot: 21, password: "azure-heron" }, { slot: 22, password: "ivory-stag" },
-            { slot: 23, password: "ebony-swan" }, { slot: 24, password: "ruby-finch" },
-            { slot: 25, password: "opal-robin" }, { slot: 26, password: "topaz-wren" },
-            { slot: 27, password: "sapphire-jay" }, { slot: 28, password: "emerald-owl" },
-            { slot: 29, password: "garnet-lark" }, { slot: 30, password: "zircon-kite" },
-            { slot: 31, password: "jasper-dove" }, { slot: 32, password: "quartz-crow" },
-            { slot: 33, password: "flint-sparrow" }, { slot: 34, password: "cobalt-magpie" },
-            { slot: 35, password: "nickel-swallow" }, { slot: 36, password: "chrome-starling" },
-            { slot: 37, password: "titanium-oriole" }, { slot: 38, password: "platinum-cardinal" },
-            { slot: 39, password: "zinc-pigeon" }, { slot: 40, password: "lead-vulture" },
-            { slot: 41, password: "mercury-pelican" }, { slot: 42, password: "carbon-ibis" },
-            { slot: 43, password: "silicon-condor" }, { slot: 44, password: "neon-toucan" },
-            { slot: 45, password: "argon-parrot" }, { slot: 46, password: "xenon-macaw" },
-            { slot: 47, password: "radon-cuckoo" }, { slot: 48, password: "krypton-canary" },
-            { slot: 49, password: "helium-budgie" }, { slot: 50, password: "lithium-cockatiel" },
-            { slot: 51, password: "boron-lovebird" }, { slot: 52, password: "sodium-finch" },
-            { slot: 53, password: "magnesium-weaver" }, { slot: 54, password: "aluminum-bunting" },
-            { slot: 55, password: "phosphorus-grosbeak" }, { slot: 56, password: "sulfur-tanager" },
-            { slot: 57, password: "chlorine-warbler" }, { slot: 58, password: "potassium-thrush" },
-            { slot: 59, password: "calcium-robin" }, { slot: 60, password: "scandium-wagtail" },
-            { slot: 61, password: "vanadium-pipit" }, { slot: 62, password: "chromium-lark" },
-            { slot: 63, password: "manganese-dunnock" }, { slot: 64, password: "cobalt-chat" },
-            { slot: 65, password: "copper-wheatear" }, { slot: 66, password: "gallium-stonechat" },
-            { slot: 67, password: "germanium-whinchat" }, { slot: 68, password: "arsenic-redstart" },
-            { slot: 69, password: "selenium-flycatcher" }, { slot: 70, password: "bromine-nightingale" },
-            { slot: 71, password: "rubidium-robin" }, { slot: 72, password: "strontium-wren" },
-            { slot: 73, password: "yttrium-warbler" }, { slot: 74, password: "zirconium-babbler" },
-            { slot: 75, password: "niobium-cisticola" }, { slot: 76, password: "molybdenum-prinia" },
-            { slot: 77, password: "technetium-apalis" }, { slot: 78, password: "ruthenium-sunbird" },
-            { slot: 79, password: "rhodium-spiderhunter" }, { slot: 80, password: "palladium-white-eye" }
-          ];
-        }
-      }
+      const passwords = getAllPasswords();
 
       function qrApi(text) {
         const encoded = encodeURIComponent(text);
@@ -251,15 +200,11 @@
         renderSection(`Local Wi-Fi (slots ${start}-${end})`, urls);
       }
 
-      async function generateLte(start = 1, end = 80) {
+      function generateLte(start = 1, end = 80) {
         const vpsUrl = vpsInput.value.replace(/\/$/, "");
         if (!vpsUrl) {
           alert("Please enter VPS server URL");
           return;
-        }
-        
-        if (passwords.length === 0) {
-          await loadPasswords();
         }
         
         const urls = [];
@@ -276,14 +221,7 @@
         renderSection(`LTE (slots ${start}-${end})`, urls);
       }
 
-      document.getElementById("genAll").addEventListener("click", async () => {
-        output.innerHTML = "";
-        await loadPasswords();
-        generateLocal(1, 80);
-        generateLte(1, 80);
-      });
-
-      document.getElementById("genLocal").addEventListener("click", () => {
+      document.getElementById("genAll").addEventListener("click", () => {
         output.innerHTML = "";
         generateLocal(1, 80);
         generateLte(1, 80);
@@ -294,13 +232,12 @@
         generateLocal(1, 80);
       });
 
-      document.getElementById("genLte").addEventListener("click", async () => {
+      document.getElementById("genLte").addEventListener("click", () => {
         output.innerHTML = "";
-        await loadPasswords();
         generateLte(1, 80);
       });
 
-      document.getElementById("genRange").addEventListener("click", async () => {
+      document.getElementById("genRange").addEventListener("click", () => {
         const range = prompt("Enter range (e.g. 1-20 or 40-60):");
         if (!range) return;
         
