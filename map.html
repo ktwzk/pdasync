@@ -231,12 +231,6 @@
 
           gridEl.appendChild(card);
         }
-            statsEl.innerHTML = lines.join("<br>");
-            card.appendChild(statsEl);
-          }
-
-          gridEl.appendChild(card);
-        }
 
         const offlineCount = TOTAL_SLOTS - localCount - lteCount;
         localCountEl.textContent = `${localCount} local`;
