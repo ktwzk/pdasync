@@ -216,15 +216,21 @@
           card.appendChild(numberEl);
           card.appendChild(typeEl);
 
-          if (stats) {
-            const statsEl = document.createElement("div");
-            statsEl.className = "slot-stats";
-            const ago = formatAgo(stats.lastSeen);
-            const lines = [`seen ${ago}`];
-            if (stats.uniqueDevices > 0) {
-              lines.unshift(`<span class="unique-devices">${stats.uniqueDevices}</span> device${stats.uniqueDevices > 1 ? "s" : ""}`);
-              lines.splice(1, 0, `${stats.totalConnections} conn`);
+          const ago = stats ? formatAgo(stats.lastSeen) : "never";
+          const statsEl = document.createElement("div");
+          statsEl.className = "slot-stats";
+          const lines = [`seen ${ago}`];
+          if (stats && stats.uniqueDevices > 0) {
+            lines.push(`${stats.uniqueDevices} device${stats.uniqueDevices > 1 ? "s" : ""} · ${stats.totalConnections} conn`);
+            if (stats.deviceSlots && stats.deviceSlots.length > 0) {
+              lines.push(`also on: ${stats.deviceSlots.join(", ")}`);
             }
+          }
+          statsEl.innerHTML = lines.join("<br>");
+          card.appendChild(statsEl);
+
+          gridEl.appendChild(card);
+        }
             statsEl.innerHTML = lines.join("<br>");
             card.appendChild(statsEl);
           }

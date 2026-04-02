@@ -235,12 +235,34 @@ function createStaticHandler(rootDir, state, wss, serverLabel, staticCache, lteD
           });
         }
       }
+
+      const deviceSlotMap = {};
+      for (const [deviceId, device] of Object.entries(lteDevices.devices)) {
+        if (device.slots.length > 0) {
+          deviceSlotMap[deviceId] = device.slots;
+        }
+      }
+
       const slotStats = {};
       for (const [slot, data] of Object.entries(lteDevices.slots)) {
+        const otherSlots = [];
+        for (const deviceId of data.uniqueDevices) {
+          const deviceSlots = deviceSlotMap[deviceId];
+          if (deviceSlots) {
+            for (const s of deviceSlots) {
+              if (s !== Number(slot) && !otherSlots.includes(s)) {
+                otherSlots.push(s);
+              }
+            }
+          }
+        }
+        otherSlots.sort((a, b) => a - b);
+
         slotStats[slot] = {
           totalConnections: data.totalConnections,
           uniqueDevices: data.uniqueDevices.size,
-          lastSeen: data.lastSeen
+          lastSeen: data.lastSeen,
+          deviceSlots: otherSlots.length > 0 ? otherSlots : null
         };
       }
       return sendJson(res, 200, { slots, lteStats: slotStats });
@@ -408,6 +430,18 @@ function handleSocketConnection(ws, req, state, wss, serverLabel) {
   ws.assignedSlot = slot;
   ws.connectionType = connectionType;
   ws.connectedAt = Date.now();
+
+  if (slot !== null) {
+    if (!lteDevices.slots[slot]) {
+      lteDevices.slots[slot] = {
+        totalConnections: 0,
+        uniqueDevices: new Set(),
+        lastSeen: null
+      };
+    }
+    lteDevices.slots[slot].totalConnections += 1;
+    lteDevices.slots[slot].lastSeen = Date.now();
+  }
 
   ws.send(JSON.stringify({
     type: "hello",
