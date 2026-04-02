@@ -302,7 +302,6 @@
           ? `${window.location.protocol}//${window.location.host}`
           : (showLte ? vpsUrlInput.value.replace(/\/$/, "") : localUrlInput.value.replace(/\/$/, ""));
         if (!url) return;
-        statusUrl = url;
         try {
           const res = await fetch(`${url}/api/status`);
           const data = await res.json();

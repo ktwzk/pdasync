@@ -168,7 +168,7 @@ async function syncFromUpstream(upstreamUrl, state, wss, serverLabel, logger) {
   }
 }
 
-function createStaticHandler(rootDir, state, wss, serverLabel, staticCache) {
+function createStaticHandler(rootDir, state, wss, serverLabel, staticCache, lteDevices) {
   return async (req, res) => {
     const reqUrl = new URL(req.url, `http://${req.headers.host || "localhost"}`);
 
@@ -558,7 +558,7 @@ export async function createSyncServer(options) {
   httpServer.requestTimeout = 30000;
   httpServer.timeout = 0;
   const wss = new WebSocketServer({ server: httpServer, path: "/ws", maxPayload: 1024 });
-  httpServer.on("request", createStaticHandler(rootDir, state, wss, serverLabel, staticCache));
+  httpServer.on("request", createStaticHandler(rootDir, state, wss, serverLabel, staticCache, lteDevices));
 
   wss.on("connection", (ws, req) => {
     ws.isAlive = true;
