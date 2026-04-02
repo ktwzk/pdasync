@@ -223,6 +223,20 @@ function createStaticHandler(rootDir, state, wss, serverLabel, staticCache) {
       });
     }
 
+    if (reqUrl.pathname === "/api/status") {
+      const slots = [];
+      for (const client of wss.clients) {
+        if (client.readyState === client.OPEN && client.assignedSlot != null) {
+          slots.push({
+            slot: client.assignedSlot,
+            type: client.connectionType || "lte",
+            connectedAt: client.connectedAt || null
+          });
+        }
+      }
+      return sendJson(res, 200, { slots });
+    }
+
     const targetPath = reqUrl.pathname === "/" ? "/client.html" : reqUrl.pathname;
     const fileName = path.basename(targetPath);
 
@@ -384,6 +398,7 @@ function handleSocketConnection(ws, req, state, wss, serverLabel) {
 
   ws.assignedSlot = slot;
   ws.connectionType = connectionType;
+  ws.connectedAt = Date.now();
 
   ws.send(JSON.stringify({
     type: "hello",

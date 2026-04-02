@@ -177,6 +177,22 @@
         background: #2a2a2a;
       }
       
+      .minimap-cell.online-local {
+        background: #1a3a2a;
+        border: 1px solid #4a9;
+        color: #4a9;
+      }
+      
+      .minimap-cell.online-lte {
+        background: #2a2a3a;
+        border: 1px solid #79a;
+        color: #79a;
+      }
+      
+      .minimap-cell.offline {
+        opacity: 0.4;
+      }
+      
       #nav {
         flex-shrink: 0;
         padding: 12px 24px;
@@ -279,6 +295,26 @@
       let currentSlot = 1;
       let showLte = false;
       let localMode = new URLSearchParams(window.location.search).get("local") === "1";
+      let slotStatus = {};
+      let statusUrl = "";
+      
+      async function fetchSlotStatus() {
+        const url = localMode
+          ? `${window.location.protocol}//${window.location.host}`
+          : (showLte ? vpsUrlInput.value.replace(/\/$/, "") : localUrlInput.value.replace(/\/$/, ""));
+        if (!url) return;
+        statusUrl = url;
+        try {
+          const res = await fetch(`${url}/api/status`);
+          const data = await res.json();
+          slotStatus = {};
+          for (const s of data.slots) {
+            slotStatus[s.slot] = s.type;
+          }
+        } catch {
+          slotStatus = {};
+        }
+      }
       
       function getUrl() {
         if (localMode) {
@@ -317,8 +353,10 @@
           
           if (i === currentSlot) {
             cell.classList.add("current");
+          } else if (slotStatus[i]) {
+            cell.classList.add(slotStatus[i] === "local" ? "online-local" : "online-lte");
           } else {
-            cell.classList.add("filled");
+            cell.classList.add("offline");
           }
           
           cell.addEventListener("click", () => {
@@ -412,7 +450,10 @@
           localUrlInput.value = `${window.location.protocol}//${window.location.host}`;
           vpsUrlInput.value = `${window.location.protocol}//${window.location.host}`;
         }
-        render();
+        fetchSlotStatus().then(() => render());
+        setInterval(() => {
+          fetchSlotStatus().then(() => renderMinimap());
+        }, 3000);
       });
     </script>
   </body>
