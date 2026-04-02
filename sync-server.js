@@ -230,11 +230,20 @@ function createStaticHandler(rootDir, state, wss, serverLabel, staticCache) {
           slots.push({
             slot: client.assignedSlot,
             type: client.connectionType || "lte",
+            deviceId: client.deviceId || null,
             connectedAt: client.connectedAt || null
           });
         }
       }
-      return sendJson(res, 200, { slots });
+      const slotStats = {};
+      for (const [slot, data] of Object.entries(lteDevices.slots)) {
+        slotStats[slot] = {
+          totalConnections: data.totalConnections,
+          uniqueDevices: data.uniqueDevices.size,
+          lastSeen: data.lastSeen
+        };
+      }
+      return sendJson(res, 200, { slots, lteStats: slotStats });
     }
 
     const targetPath = reqUrl.pathname === "/" ? "/client.html" : reqUrl.pathname;
@@ -439,6 +448,12 @@ function handleSocketConnection(ws, req, state, wss, serverLabel) {
       return;
     }
 
+    if (message.type === "device-id" && connectionType === "lte" && slot !== null) {
+      ws.deviceId = message.deviceId;
+      recordLteConnection(slot, message.deviceId);
+      return;
+    }
+
     if (message.type === "client-status") {
       return;
     }
@@ -457,6 +472,25 @@ export async function createSyncServer(options) {
   const host = options.host ?? "0.0.0.0";
   const serverLabel = options.serverLabel;
   const staticCache = await loadStaticCache(rootDir);
+
+  const dataDir = process.env.DATA_DIR ?? rootDir;
+  const lteDevicesPath = path.join(dataDir, "lte-devices.json");
+  let lteDevices = { devices: {}, slots: {} };
+  try {
+    const raw = await fsAsync.readFile(lteDevicesPath, "utf-8");
+    const parsed = JSON.parse(raw);
+    lteDevices.devices = parsed.devices || {};
+    lteDevices.slots = {};
+    for (const [slot, data] of Object.entries(parsed.slots || {})) {
+      lteDevices.slots[slot] = {
+        totalConnections: data.totalConnections || 0,
+        uniqueDevices: new Set(Array.isArray(data.uniqueDevices) ? data.uniqueDevices : []),
+        lastSeen: data.lastSeen || null
+      };
+    }
+  } catch {
+  }
+
   const state = {
     showState: createInitialShowState({
       durationMs: options.durationMs,
@@ -471,6 +505,52 @@ export async function createSyncServer(options) {
     const ts = new Date().toISOString();
     console.log(`[${ts}] [${serverLabel}] ${message}`);
   };
+
+  function saveLteDevices() {
+    const serializable = {
+      devices: lteDevices.devices,
+      slots: {}
+    };
+    for (const [slot, data] of Object.entries(lteDevices.slots)) {
+      serializable.slots[slot] = {
+        totalConnections: data.totalConnections,
+        uniqueDevices: Array.from(data.uniqueDevices),
+        lastSeen: data.lastSeen
+      };
+    }
+    void fsAsync.writeFile(lteDevicesPath, JSON.stringify(serializable, null, 2));
+  }
+
+  function recordLteConnection(slot, deviceId) {
+    if (!lteDevices.devices[deviceId]) {
+      lteDevices.devices[deviceId] = {
+        firstSeen: Date.now(),
+        lastSeen: Date.now(),
+        slots: [],
+        connections: 0
+      };
+    }
+    const device = lteDevices.devices[deviceId];
+    device.lastSeen = Date.now();
+    device.connections += 1;
+    if (!device.slots.includes(slot)) {
+      device.slots.push(slot);
+    }
+
+    if (!lteDevices.slots[slot]) {
+      lteDevices.slots[slot] = {
+        totalConnections: 0,
+        uniqueDevices: new Set(),
+        lastSeen: null
+      };
+    }
+    const slotData = lteDevices.slots[slot];
+    slotData.totalConnections += 1;
+    slotData.uniqueDevices.add(deviceId);
+    slotData.lastSeen = Date.now();
+    saveLteDevices();
+    logger(`lte device ${deviceId.slice(0, 8)}… slot=${slot} (conn=${slotData.totalConnections}, unique=${slotData.uniqueDevices.size})`);
+  }
 
   const httpServer = http.createServer();
   httpServer.maxHeadersCount = 20;

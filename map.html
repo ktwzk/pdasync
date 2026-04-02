@@ -1,0 +1,253 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Slot Map</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        --bg: #0a0a0a;
+        --fg: #eee;
+        --muted: #555;
+        --border: #222;
+        --local-color: #4a9;
+        --lte-color: #79a;
+        --offline-bg: #151515;
+        --local-bg: #0f2a1a;
+        --lte-bg: #1a1a2a;
+      }
+      * { box-sizing: border-box; }
+      html, body {
+        margin: 0;
+        padding: 0;
+        height: 100%;
+        background: var(--bg);
+        color: var(--fg);
+        font-family: "SF Mono", "Menlo", "Consolas", monospace;
+        overflow: hidden;
+      }
+      #header {
+        padding: 16px 24px;
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        border-bottom: 1px solid var(--border);
+      }
+      #header h1 {
+        margin: 0;
+        font-size: 18px;
+        font-weight: 600;
+      }
+      #header .stats {
+        margin-left: auto;
+        font-size: 12px;
+        color: var(--muted);
+      }
+      #header .stats span {
+        margin-left: 12px;
+      }
+      #header .stats .local-count { color: var(--local-color); }
+      #header .stats .lte-count { color: var(--lte-color); }
+      #header .stats .offline-count { color: var(--muted); }
+      #config {
+        padding: 12px 24px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        border-bottom: 1px solid var(--border);
+      }
+      #config label {
+        font-size: 12px;
+        color: var(--muted);
+      }
+      #config input {
+        padding: 6px 10px;
+        border: 1px solid var(--border);
+        border-radius: 4px;
+        background: #1a1a1a;
+        color: var(--fg);
+        font: inherit;
+        font-size: 13px;
+        width: 220px;
+      }
+      #config .refresh {
+        margin-left: auto;
+        font-size: 11px;
+        color: var(--muted);
+      }
+      #grid {
+        flex: 1;
+        padding: 24px;
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+        gap: 8px;
+        overflow-y: auto;
+        align-content: start;
+      }
+      .slot-card {
+        background: var(--offline-bg);
+        border-radius: 8px;
+        padding: 12px;
+        text-align: center;
+        border: 2px solid transparent;
+        transition: all 0.15s ease;
+        cursor: pointer;
+      }
+      .slot-card:hover {
+        background: #1e1e1e;
+      }
+      .slot-card.online-local {
+        background: var(--local-bg);
+        border-color: var(--local-color);
+      }
+      .slot-card.online-lte {
+        background: var(--lte-bg);
+        border-color: var(--lte-color);
+      }
+      .slot-card .slot-number {
+        font-size: 20px;
+        font-weight: 700;
+        margin-bottom: 6px;
+      }
+      .slot-card .slot-type {
+        font-size: 10px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-bottom: 8px;
+      }
+      .slot-card.online-local .slot-type { color: var(--local-color); }
+      .slot-card.online-lte .slot-type { color: var(--lte-color); }
+      .slot-card.offline .slot-type { color: var(--muted); }
+      .slot-card .slot-stats {
+        font-size: 10px;
+        color: var(--muted);
+        line-height: 1.5;
+      }
+      .slot-card .slot-stats .unique-devices {
+        color: var(--lte-color);
+        font-weight: 600;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="header">
+      <h1>Slot Map</h1>
+      <div class="stats">
+        <span class="local-count" id="localCount">0 local</span>
+        <span class="lte-count" id="lteCount">0 LTE</span>
+        <span class="offline-count" id="offlineCount">80 offline</span>
+      </div>
+    </div>
+    <div id="config">
+      <label>Server:</label>
+      <input type="text" id="serverUrl" placeholder="http://your-vps.domain:8080">
+      <span class="refresh" id="refreshInfo">Auto-refresh: 3s</span>
+    </div>
+    <div id="grid"></div>
+
+    <script type="module">
+      const TOTAL_SLOTS = 80;
+      const gridEl = document.getElementById("grid");
+      const serverUrlInput = document.getElementById("serverUrl");
+      const localCountEl = document.getElementById("localCount");
+      const lteCountEl = document.getElementById("lteCount");
+      const offlineCountEl = document.getElementById("offlineCount");
+      const refreshInfoEl = document.getElementById("refreshInfo");
+
+      let slotStatus = {};
+      let lteStats = {};
+
+      function formatAgo(ts) {
+        if (!ts) return "never";
+        const diff = Math.max(0, Date.now() - ts);
+        const h = Math.floor(diff / 3600000);
+        const m = Math.floor((diff % 3600000) / 60000);
+        const s = Math.floor((diff % 60000) / 1000);
+        const parts = [];
+        if (h > 0) parts.push(`${h}h`);
+        if (m > 0) parts.push(`${m}m`);
+        parts.push(`${s}s`);
+        return parts.join(" ");
+      }
+
+      async function fetchStatus() {
+        const url = serverUrlInput.value.replace(/\/$/, "");
+        if (!url) return;
+        try {
+          const res = await fetch(`${url}/api/status`);
+          const data = await res.json();
+          slotStatus = {};
+          for (const s of data.slots) {
+            slotStatus[s.slot] = s.type;
+          }
+          lteStats = data.lteStats || {};
+        } catch {
+          slotStatus = {};
+          lteStats = {};
+        }
+        render();
+      }
+
+      function render() {
+        let localCount = 0;
+        let lteCount = 0;
+
+        gridEl.innerHTML = "";
+
+        for (let i = 1; i <= TOTAL_SLOTS; i++) {
+          const card = document.createElement("div");
+          const type = slotStatus[i];
+          const stats = lteStats[String(i)];
+
+          if (type === "local") localCount++;
+          else if (type === "lte") lteCount++;
+
+          card.className = `slot-card ${type ? `online-${type}` : "offline"}`;
+
+          const numberEl = document.createElement("div");
+          numberEl.className = "slot-number";
+          numberEl.textContent = i;
+
+          const typeEl = document.createElement("div");
+          typeEl.className = "slot-type";
+          typeEl.textContent = type === "local" ? "Wi-Fi" : type === "lte" ? "LTE" : "offline";
+
+          card.appendChild(numberEl);
+          card.appendChild(typeEl);
+
+          if (stats && stats.uniqueDevices > 0) {
+            const statsEl = document.createElement("div");
+            statsEl.className = "slot-stats";
+            const ago = formatAgo(stats.lastSeen);
+            statsEl.innerHTML = `<span class="unique-devices">${stats.uniqueDevices}</span> device${stats.uniqueDevices > 1 ? "s" : ""}<br>${stats.totalConnections} conn<br>seen ${ago}`;
+            card.appendChild(statsEl);
+          }
+
+          gridEl.appendChild(card);
+        }
+
+        const offlineCount = TOTAL_SLOTS - localCount - lteCount;
+        localCountEl.textContent = `${localCount} local`;
+        lteCountEl.textContent = `${lteCount} LTE`;
+        offlineCountEl.textContent = `${offlineCount} offline`;
+
+        const now = new Date().toLocaleTimeString();
+        refreshInfoEl.textContent = `Updated: ${now}`;
+      }
+
+      const params = new URLSearchParams(window.location.search);
+      if (params.get("local") === "1") {
+        serverUrlInput.value = `${window.location.protocol}//${window.location.host}`;
+        serverUrlInput.disabled = true;
+      }
+
+      serverUrlInput.addEventListener("change", () => {
+        void fetchStatus();
+      });
+
+      void fetchStatus();
+      setInterval(fetchStatus, 3000);
+    </script>
+  </body>
+</html>

@@ -296,7 +296,6 @@
       let showLte = false;
       let localMode = new URLSearchParams(window.location.search).get("local") === "1";
       let slotStatus = {};
-      let statusUrl = "";
       
       async function fetchSlotStatus() {
         const url = localMode
@@ -349,7 +348,10 @@
         for (let i = 1; i <= TOTAL_SLOTS; i++) {
           const cell = document.createElement("div");
           cell.className = "minimap-cell";
-          cell.textContent = i;
+          
+          const label = document.createElement("span");
+          label.textContent = i;
+          cell.appendChild(label);
           
           if (i === currentSlot) {
             cell.classList.add("current");

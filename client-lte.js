@@ -32,8 +32,18 @@ const state = {
   lastErrorMs: 0,
   serverRole: "unknown",
   readyToPlay: false,
-  disconnectedByPriority: false
+  disconnectedByPriority: false,
+  deviceId: null
 };
+
+function getOrCreateDeviceId() {
+  let id = localStorage.getItem("lte-device-id");
+  if (!id) {
+    id = crypto.randomUUID();
+    localStorage.setItem("lte-device-id", id);
+  }
+  return id;
+}
 
 function resolveSlot(input) {
   const numeric = Number.parseInt(input, 10);
@@ -154,6 +164,8 @@ function connect(slot) {
   ws.addEventListener("open", () => {
     state.connected = true;
     state.bestRttMs = Infinity;
+    state.deviceId = getOrCreateDeviceId();
+    ws.send(JSON.stringify({ type: "device-id", deviceId: state.deviceId }));
     setStatus("Syncing…");
     requestTimesync();
     ws.send(JSON.stringify({ type: "get-state" }));
