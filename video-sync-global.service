@@ -1,0 +1,17 @@
+[Unit]
+Description=Video Sync Global Server
+After=network.target
+
+[Service]
+Type=simple
+User=node
+WorkingDirectory=/opt/video-sync
+ExecStart=/usr/bin/node server-global.js
+Restart=on-failure
+RestartSec=5
+Environment=PORT=8080
+Environment=HOST=0.0.0.0
+Environment=CONTROL_TOKEN=
+
+[Install]
+WantedBy=multi-user.target

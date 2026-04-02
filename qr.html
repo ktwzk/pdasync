@@ -1,0 +1,327 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>QR Code Generator</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        --bg: #111;
+        --fg: #eee;
+        --muted: #888;
+        --input-bg: #222;
+        --border: #333;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        padding: 24px;
+        background: var(--bg);
+        color: var(--fg);
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      }
+      h1 { margin: 0 0 16px; font-size: 24px; }
+      .config {
+        display: flex;
+        gap: 16px;
+        margin-bottom: 24px;
+        flex-wrap: wrap;
+      }
+      .field {
+        flex: 1;
+        min-width: 200px;
+      }
+      .field label {
+        display: block;
+        margin-bottom: 6px;
+        color: var(--muted);
+        font-size: 12px;
+      }
+      .field input {
+        width: 100%;
+        padding: 10px 12px;
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        background: var(--input-bg);
+        color: var(--fg);
+        font: inherit;
+      }
+      .controls {
+        display: flex;
+        gap: 12px;
+        margin-bottom: 24px;
+        flex-wrap: wrap;
+      }
+      button {
+        padding: 10px 16px;
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        background: #333;
+        color: var(--fg);
+        font: inherit;
+        cursor: pointer;
+      }
+      button:hover { background: #444; }
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+        gap: 16px;
+      }
+      .qr {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 12px;
+        background: #fff;
+        border-radius: 8px;
+      }
+      .qr img {
+        width: 120px;
+        height: 120px;
+      }
+      .qr .label {
+        margin-top: 8px;
+        font-size: 11px;
+        color: #333;
+        text-align: center;
+      }
+      .qr .type {
+        font-size: 10px;
+        color: #666;
+        text-transform: uppercase;
+      }
+      .section-title {
+        margin: 24px 0 12px;
+        font-size: 14px;
+        color: var(--muted);
+        border-bottom: 1px solid var(--border);
+        padding-bottom: 8px;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>QR Code Generator</h1>
+    
+    <div class="config">
+      <div class="field">
+        <label>Local Server URL (e.g. http://192.168.1.100:8081)</label>
+        <input type="text" id="localUrl" placeholder="http://192.168.1.100:8081">
+      </div>
+      <div class="field">
+        <label>VPS Server URL (e.g. http://your-vps.domain)</label>
+        <input type="text" id="vpsUrl" placeholder="http://your-vps.domain">
+      </div>
+    </div>
+    
+    <div class="controls">
+      <button id="genAll">Generate All (160)</button>
+      <button id="genLocal">Generate Local (80)</button>
+      <button id="genLte">Generate LTE (80)</button>
+      <button id="genRange">Generate Range...</button>
+    </div>
+
+    <div id="output"></div>
+
+    <script type="module">
+      const localInput = document.getElementById("localUrl");
+      const vpsInput = document.getElementById("vpsUrl");
+      const output = document.getElementById("output");
+
+      let passwords = [];
+
+      async function loadPasswords() {
+        try {
+          const vpsUrl = vpsInput.value.replace(/\/$/, "");
+          const response = await fetch(`${vpsUrl}/api/control/words`);
+          const data = await response.json();
+          passwords = data.passwords;
+        } catch {
+          // Fallback to hardcoded list
+          passwords = [
+            { slot: 1, password: "gray-shark" }, { slot: 2, password: "blue-whale" },
+            { slot: 3, password: "red-tiger" }, { slot: 4, password: "gold-eagle" },
+            { slot: 5, password: "dark-raven" }, { slot: 6, password: "iron-wolf" },
+            { slot: 7, password: "silver-fox" }, { slot: 8, password: "jade-cobra" },
+            { slot: 9, password: "steel-hawk" }, { slot: 10, password: "bronze-bear" },
+            { slot: 11, password: "black-panther" }, { slot: 12, password: "white-falcon" },
+            { slot: 13, password: "green-viper" }, { slot: 14, password: "amber-lion" },
+            { slot: 15, password: "crimson-dragon" }, { slot: 16, password: "pearl-dove" },
+            { slot: 17, password: "copper-otter" }, { slot: 18, password: "onyx-lynx" },
+            { slot: 19, password: "coral-crane" }, { slot: 20, password: "slate-badger" },
+            { slot: 21, password: "azure-heron" }, { slot: 22, password: "ivory-stag" },
+            { slot: 23, password: "ebony-swan" }, { slot: 24, password: "ruby-finch" },
+            { slot: 25, password: "opal-robin" }, { slot: 26, password: "topaz-wren" },
+            { slot: 27, password: "sapphire-jay" }, { slot: 28, password: "emerald-owl" },
+            { slot: 29, password: "garnet-lark" }, { slot: 30, password: "zircon-kite" },
+            { slot: 31, password: "jasper-dove" }, { slot: 32, password: "quartz-crow" },
+            { slot: 33, password: "flint-sparrow" }, { slot: 34, password: "cobalt-magpie" },
+            { slot: 35, password: "nickel-swallow" }, { slot: 36, password: "chrome-starling" },
+            { slot: 37, password: "titanium-oriole" }, { slot: 38, password: "platinum-cardinal" },
+            { slot: 39, password: "zinc-pigeon" }, { slot: 40, password: "lead-vulture" },
+            { slot: 41, password: "mercury-pelican" }, { slot: 42, password: "carbon-ibis" },
+            { slot: 43, password: "silicon-condor" }, { slot: 44, password: "neon-toucan" },
+            { slot: 45, password: "argon-parrot" }, { slot: 46, password: "xenon-macaw" },
+            { slot: 47, password: "radon-cuckoo" }, { slot: 48, password: "krypton-canary" },
+            { slot: 49, password: "helium-budgie" }, { slot: 50, password: "lithium-cockatiel" },
+            { slot: 51, password: "boron-lovebird" }, { slot: 52, password: "sodium-finch" },
+            { slot: 53, password: "magnesium-weaver" }, { slot: 54, password: "aluminum-bunting" },
+            { slot: 55, password: "phosphorus-grosbeak" }, { slot: 56, password: "sulfur-tanager" },
+            { slot: 57, password: "chlorine-warbler" }, { slot: 58, password: "potassium-thrush" },
+            { slot: 59, password: "calcium-robin" }, { slot: 60, password: "scandium-wagtail" },
+            { slot: 61, password: "vanadium-pipit" }, { slot: 62, password: "chromium-lark" },
+            { slot: 63, password: "manganese-dunnock" }, { slot: 64, password: "cobalt-chat" },
+            { slot: 65, password: "copper-wheatear" }, { slot: 66, password: "gallium-stonechat" },
+            { slot: 67, password: "germanium-whinchat" }, { slot: 68, password: "arsenic-redstart" },
+            { slot: 69, password: "selenium-flycatcher" }, { slot: 70, password: "bromine-nightingale" },
+            { slot: 71, password: "rubidium-robin" }, { slot: 72, password: "strontium-wren" },
+            { slot: 73, password: "yttrium-warbler" }, { slot: 74, password: "zirconium-babbler" },
+            { slot: 75, password: "niobium-cisticola" }, { slot: 76, password: "molybdenum-prinia" },
+            { slot: 77, password: "technetium-apalis" }, { slot: 78, password: "ruthenium-sunbird" },
+            { slot: 79, password: "rhodium-spiderhunter" }, { slot: 80, password: "palladium-white-eye" }
+          ];
+        }
+      }
+
+      function qrApi(text) {
+        const encoded = encodeURIComponent(text);
+        return `https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${encoded}`;
+      }
+
+      function createQr(url, slot, type) {
+        const div = document.createElement("div");
+        div.className = "qr";
+        
+        const img = document.createElement("img");
+        img.src = qrApi(url);
+        img.alt = `QR for ${url}`;
+        
+        const typeLabel = document.createElement("div");
+        typeLabel.className = "type";
+        typeLabel.textContent = type;
+        
+        const label = document.createElement("div");
+        label.className = "label";
+        label.textContent = slot;
+        
+        div.appendChild(img);
+        div.appendChild(typeLabel);
+        div.appendChild(label);
+        
+        return div;
+      }
+
+      function renderSection(title, urls) {
+        if (urls.length === 0) return;
+        
+        const section = document.createElement("div");
+        
+        const titleEl = document.createElement("div");
+        titleEl.className = "section-title";
+        titleEl.textContent = title;
+        section.appendChild(titleEl);
+        
+        const grid = document.createElement("div");
+        grid.className = "grid";
+        
+        for (const { url, slot, type } of urls) {
+          grid.appendChild(createQr(url, slot, type));
+        }
+        
+        section.appendChild(grid);
+        output.appendChild(section);
+      }
+
+      function generateLocal(start = 1, end = 80) {
+        const localUrl = localInput.value.replace(/\/$/, "");
+        if (!localUrl) {
+          alert("Please enter local server URL");
+          return;
+        }
+        
+        const urls = [];
+        for (let slot = start; slot <= end; slot++) {
+          urls.push({
+            url: `${localUrl}/client.html?slot=${slot}`,
+            slot: `Slot ${slot}`,
+            type: "Wi-Fi"
+          });
+        }
+        
+        renderSection(`Local Wi-Fi (slots ${start}-${end})`, urls);
+      }
+
+      async function generateLte(start = 1, end = 80) {
+        const vpsUrl = vpsInput.value.replace(/\/$/, "");
+        if (!vpsUrl) {
+          alert("Please enter VPS server URL");
+          return;
+        }
+        
+        if (passwords.length === 0) {
+          await loadPasswords();
+        }
+        
+        const urls = [];
+        
+        for (let i = start - 1; i < end; i++) {
+          const p = passwords[i];
+          urls.push({
+            url: `${vpsUrl}/client-lte.html?slot=${p.password}`,
+            slot: `${p.password} (slot ${p.slot})`,
+            type: "LTE"
+          });
+        }
+        
+        renderSection(`LTE (slots ${start}-${end})`, urls);
+      }
+
+      document.getElementById("genAll").addEventListener("click", async () => {
+        output.innerHTML = "";
+        await loadPasswords();
+        generateLocal(1, 80);
+        generateLte(1, 80);
+      });
+
+      document.getElementById("genLocal").addEventListener("click", () => {
+        output.innerHTML = "";
+        generateLocal(1, 80);
+        generateLte(1, 80);
+      });
+
+      document.getElementById("genLocal").addEventListener("click", () => {
+        output.innerHTML = "";
+        generateLocal(1, 80);
+      });
+
+      document.getElementById("genLte").addEventListener("click", async () => {
+        output.innerHTML = "";
+        await loadPasswords();
+        generateLte(1, 80);
+      });
+
+      document.getElementById("genRange").addEventListener("click", async () => {
+        const range = prompt("Enter range (e.g. 1-20 or 40-60):");
+        if (!range) return;
+        
+        const match = range.match(/^(\d+)-(\d+)$/);
+        if (!match) {
+          alert("Invalid format. Use: start-end (e.g. 1-20)");
+          return;
+        }
+        
+        const start = Math.max(1, Math.min(80, parseInt(match[1], 10)));
+        const end = Math.max(1, Math.min(80, parseInt(match[2], 10)));
+        
+        if (start > end) {
+          alert("Start must be less than end");
+          return;
+        }
+        
+        output.innerHTML = "";
+        generateLocal(start, end);
+        generateLte(start, end);
+      });
+    </script>
+  </body>
+</html>

@@ -1,0 +1,418 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>QR Code Viewer</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        --bg: #111;
+        --fg: #eee;
+        --muted: #666;
+        --accent: #4a9;
+        --input-bg: #1a1a1a;
+        --border: #333;
+      }
+      * { box-sizing: border-box; }
+      html, body {
+        margin: 0;
+        padding: 0;
+        height: 100%;
+        background: var(--bg);
+        color: var(--fg);
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        overflow: hidden;
+      }
+      
+      #app {
+        display: flex;
+        flex-direction: column;
+        height: 100vh;
+      }
+      
+      #config {
+        flex-shrink: 0;
+        padding: 16px 24px;
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        border-bottom: 1px solid #222;
+        flex-wrap: wrap;
+      }
+      
+      #config .field {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      
+      #config label {
+        font-size: 12px;
+        color: var(--muted);
+        white-space: nowrap;
+      }
+      
+      #config input {
+        padding: 6px 10px;
+        border: 1px solid var(--border);
+        border-radius: 4px;
+        background: var(--input-bg);
+        color: var(--fg);
+        font: inherit;
+        font-size: 13px;
+        width: 200px;
+      }
+      
+      #config .grid-toggle {
+        display: flex;
+        gap: 8px;
+        margin-left: auto;
+      }
+      
+      #config .grid-toggle button {
+        padding: 6px 12px;
+        border: 1px solid var(--border);
+        border-radius: 4px;
+        background: #222;
+        color: var(--fg);
+        font: inherit;
+        font-size: 12px;
+        cursor: pointer;
+        opacity: 0.5;
+      }
+      
+      #config .grid-toggle button.active {
+        opacity: 1;
+        background: #333;
+        border-color: var(--accent);
+      }
+      
+      #main {
+        flex: 1;
+        display: flex;
+        gap: 24px;
+        padding: 24px;
+        overflow: hidden;
+      }
+      
+      #preview {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 16px;
+      }
+      
+      #preview .qr-large {
+        background: #fff;
+        padding: 20px;
+        border-radius: 16px;
+      }
+      
+      #preview .qr-large img {
+        width: 280px;
+        height: 280px;
+      }
+      
+      #preview .qr-label {
+        font-size: 28px;
+        font-weight: 700;
+        color: #fff;
+      }
+      
+      #preview .qr-url {
+        font-size: 11px;
+        color: var(--muted);
+        word-break: break-all;
+        max-width: 300px;
+        text-align: center;
+      }
+      
+      #minimap {
+        width: 320px;
+        flex-shrink: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+      
+      #minimap .minimap-label {
+        font-size: 12px;
+        color: var(--muted);
+        margin-bottom: 4px;
+      }
+      
+      #minimap-grid {
+        display: grid;
+        grid-template-columns: repeat(16, 1fr);
+        gap: 2px;
+      }
+      
+      .minimap-cell {
+        aspect-ratio: 1;
+        background: #222;
+        border-radius: 2px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 9px;
+        color: var(--muted);
+        cursor: pointer;
+        transition: all 0.1s ease;
+      }
+      
+      .minimap-cell:hover {
+        background: #333;
+      }
+      
+      .minimap-cell.current {
+        background: var(--accent);
+        color: #000;
+        font-weight: 700;
+      }
+      
+      .minimap-cell.filled {
+        background: #2a2a2a;
+      }
+      
+      #nav {
+        flex-shrink: 0;
+        padding: 12px 24px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 24px;
+        border-top: 1px solid #222;
+      }
+      
+      #nav button {
+        padding: 8px 16px;
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        background: #222;
+        color: var(--fg);
+        font: inherit;
+        cursor: pointer;
+      }
+      
+      #nav button:hover { background: #333; }
+      
+      #nav button:disabled {
+        opacity: 0.3;
+        cursor: default;
+      }
+      
+      #nav .hint {
+        color: var(--muted);
+        font-size: 12px;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="app">
+      <div id="config">
+        <div class="field">
+          <label>Local:</label>
+          <input type="text" id="localUrl" placeholder="http://192.168.1.100:8081">
+        </div>
+        <div class="field">
+          <label>VPS:</label>
+          <input type="text" id="vpsUrl" placeholder="http://your-vps.domain">
+        </div>
+        <div class="grid-toggle">
+          <button id="toggle-wifi" class="active">Wi-Fi</button>
+          <button id="toggle-lte">LTE</button>
+        </div>
+      </div>
+      
+      <div id="main">
+        <div id="preview">
+          <div class="qr-large">
+            <img id="preview-img" src="" alt="QR Code">
+          </div>
+          <div class="qr-label" id="preview-label">Slot 1</div>
+          <div class="qr-url" id="preview-url"></div>
+        </div>
+        
+        <div id="minimap">
+          <div class="minimap-label">Minimap (click to navigate)</div>
+          <div id="minimap-grid"></div>
+        </div>
+      </div>
+      
+      <div id="nav">
+        <button id="prev">← Prev</button>
+        <span class="hint">Arrow keys or click minimap</span>
+        <button id="next">Next →</button>
+      </div>
+    </div>
+
+    <script type="module">
+      const TOTAL_SLOTS = 80;
+      const COLS = 16;
+      const ROWS = 5;
+      
+      const localUrlInput = document.getElementById("localUrl");
+      const vpsUrlInput = document.getElementById("vpsUrl");
+      const previewImg = document.getElementById("preview-img");
+      const previewLabel = document.getElementById("preview-label");
+      const previewUrl = document.getElementById("preview-url");
+      const minimapGrid = document.getElementById("minimap-grid");
+      const prevBtn = document.getElementById("prev");
+      const nextBtn = document.getElementById("next");
+      const toggleWifi = document.getElementById("toggle-wifi");
+      const toggleLte = document.getElementById("toggle-lte");
+      
+      // Dynamic import from lte-passwords.js
+      async function loadPasswords() {
+        try {
+          const mod = await import("./lte-passwords.js");
+          return mod.getAllPasswords();
+        } catch {
+          return [];
+        }
+      }
+      
+      let passwords = [];
+      let currentSlot = 1;
+      let showLte = false;
+      let localMode = new URLSearchParams(window.location.search).get("local") === "1";
+      
+      function getUrl() {
+        if (localMode) {
+          const base = `${window.location.protocol}//${window.location.host}`;
+          return showLte 
+            ? `${base}/client-lte.html?slot=${currentSlot}` 
+            : `${base}/client.html?slot=${currentSlot}`;
+        }
+        
+        const localUrl = localUrlInput.value.replace(/\/$/, "");
+        const vpsUrl = vpsUrlInput.value.replace(/\/$/, "");
+        
+        if (showLte) {
+          return vpsUrl && passwords[currentSlot - 1] 
+            ? `${vpsUrl}/client-lte.html?slot=${passwords[currentSlot - 1].password}` 
+            : "";
+        } else {
+          return localUrl 
+            ? `${localUrl}/client.html?slot=${currentSlot}` 
+            : "";
+        }
+      }
+      
+      function qrApi(text) {
+        return `https://api.qrserver.com/v1/create-qr-code/?size=280x280&data=${encodeURIComponent(text)}`;
+      }
+      
+      function renderMinimap() {
+        minimapGrid.innerHTML = "";
+        
+        for (let i = 1; i <= TOTAL_SLOTS; i++) {
+          const cell = document.createElement("div");
+          cell.className = "minimap-cell";
+          cell.textContent = i;
+          
+          if (i === currentSlot) {
+            cell.classList.add("current");
+          } else {
+            cell.classList.add("filled");
+          }
+          
+          cell.addEventListener("click", () => {
+            currentSlot = i;
+            render();
+          });
+          
+          minimapGrid.appendChild(cell);
+        }
+      }
+      
+      function render() {
+        const url = getUrl();
+        
+        if (url) {
+          previewImg.src = qrApi(url);
+        }
+        
+        if (showLte && passwords[currentSlot - 1]) {
+          previewLabel.textContent = passwords[currentSlot - 1].password;
+        } else {
+          previewLabel.textContent = `Slot ${currentSlot}`;
+        }
+        
+        previewUrl.textContent = url;
+        
+        renderMinimap();
+        
+        toggleWifi.classList.toggle("active", !showLte);
+        toggleLte.classList.toggle("active", showLte);
+        
+        prevBtn.disabled = currentSlot <= 1;
+        nextBtn.disabled = currentSlot >= TOTAL_SLOTS;
+      }
+      
+      prevBtn.addEventListener("click", () => {
+        if (currentSlot > 1) {
+          currentSlot--;
+          render();
+        }
+      });
+      
+      nextBtn.addEventListener("click", () => {
+        if (currentSlot < TOTAL_SLOTS) {
+          currentSlot++;
+          render();
+        }
+      });
+      
+      toggleWifi.addEventListener("click", () => {
+        showLte = false;
+        currentSlot = 1;
+        render();
+      });
+      
+      toggleLte.addEventListener("click", () => {
+        showLte = true;
+        currentSlot = 1;
+        render();
+      });
+      
+      document.addEventListener("keydown", (e) => {
+        if (e.key === "ArrowLeft") {
+          if (currentSlot > 1) {
+            currentSlot--;
+            render();
+          }
+        } else if (e.key === "ArrowRight") {
+          if (currentSlot < TOTAL_SLOTS) {
+            currentSlot++;
+            render();
+          }
+        } else if (e.key === "ArrowUp") {
+          if (currentSlot > COLS) {
+            currentSlot -= COLS;
+            render();
+          }
+        } else if (e.key === "ArrowDown") {
+          if (currentSlot + COLS <= TOTAL_SLOTS) {
+            currentSlot += COLS;
+            render();
+          }
+        }
+      });
+      
+      loadPasswords().then(pw => {
+        passwords = pw;
+        if (localMode) {
+          localUrlInput.disabled = true;
+          vpsUrlInput.disabled = true;
+          localUrlInput.value = `${window.location.protocol}//${window.location.host}`;
+          vpsUrlInput.value = `${window.location.protocol}//${window.location.host}`;
+        }
+        render();
+      });
+    </script>
+  </body>
+</html>
