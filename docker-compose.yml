@@ -9,9 +9,11 @@ services:
       - PORT=8080
       - HOST=0.0.0.0
       - CONTROL_TOKEN=${CONTROL_TOKEN:-}
+      - DATA_DIR=/data
     restart: unless-stopped
     volumes:
       - ./videos:/app/videos
+      - ./data:/data
 
   local:
     build:
@@ -24,8 +26,10 @@ services:
       - HOST=0.0.0.0
       - UPSTREAM_URL=http://global:8080
       - CONTROL_TOKEN=${CONTROL_TOKEN:-}
+      - DATA_DIR=/data
     restart: unless-stopped
     depends_on:
       - global
     volumes:
       - ./videos:/app/videos
+      - ./data:/data
