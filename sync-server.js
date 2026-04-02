@@ -373,7 +373,7 @@ function createStaticHandler(rootDir, state, wss, serverLabel, staticCache, lteD
   };
 }
 
-function handleSocketConnection(ws, req, state, wss, serverLabel) {
+function handleSocketConnection(ws, req, state, wss, serverLabel, lteDevices) {
   const reqUrl = new URL(req.url, `http://${req.headers.host || "localhost"}`);
   const rawSlot = reqUrl.searchParams.get("slot") || "";
   const isLte = reqUrl.searchParams.get("mode") === "lte" || reqUrl.pathname.includes("client-lte");
@@ -597,7 +597,7 @@ export async function createSyncServer(options) {
   wss.on("connection", (ws, req) => {
     ws.isAlive = true;
     ws.on("pong", () => { ws.isAlive = true; });
-    handleSocketConnection(ws, req, state, wss, serverLabel);
+    handleSocketConnection(ws, req, state, wss, serverLabel, lteDevices);
   });
 
   const pingInterval = setInterval(() => {
