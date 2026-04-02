@@ -70,14 +70,6 @@ function init() {
   }
 }
 
-  state.slot = resolvedSlot;
-  slotLine.textContent = `Slot ${resolvedSlot} · ${startupMode === "stream" ? "LTE stream" : "Wi-Fi cache"}`;
-
-  if (startupMode === "stream") {
-    startButton.textContent = "Start LTE Stream";
-  }
-}
-
 function getVideoPath() {
   return `/videos/${String(state.slot).padStart(2, "0")}.mp4`;
 }
