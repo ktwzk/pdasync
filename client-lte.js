@@ -243,6 +243,7 @@ async function startPlayback() {
   overlay.classList.add("hidden");
 
   try {
+    video.src = `/videos/${String(state.slot).padStart(2, "0")}.mp4`;
     video.muted = true;
     video.playsInline = true;
 
