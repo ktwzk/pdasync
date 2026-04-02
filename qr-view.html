@@ -283,9 +283,10 @@
       function getUrl() {
         if (localMode) {
           const base = `${window.location.protocol}//${window.location.host}`;
-          return showLte 
-            ? `${base}/client-lte.html?slot=${currentSlot}` 
-            : `${base}/client.html?slot=${currentSlot}`;
+          if (showLte && passwords[currentSlot - 1]) {
+            return `${base}/client-lte.html?slot=${passwords[currentSlot - 1].password}`;
+          }
+          return `${base}/client.html?slot=${currentSlot}`;
         }
         
         const localUrl = localUrlInput.value.replace(/\/$/, "");
